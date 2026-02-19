@@ -1,0 +1,17 @@
+# ROS 2 Build files (just in case they leak to the host)
+build/
+install/
+log/
+**/compile_commands.json
+
+# PlatformIO and Microcontroller files
+.pio/
+*.racer_owner_set
+*.racer_libs_seeded
+
+# OS/Editor generated files
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
