@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: ${BUILD_TARGET} 
-    image: airacer:${BUILD_TARGET}
+    image: sec26:${BUILD_TARGET}
     environment:
       # Pass the DISPLAY variable from the .env file into the container
       - DISPLAY=${DISPLAY_CONFIG}
