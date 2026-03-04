@@ -1,5 +1,5 @@
-# Start with the ROS 2 Jazzy base image
-FROM ros:jazzy-ros-base AS base
+# Start with the ROS 2 humble base image
+FROM ros:humble-ros-base AS base
 
 # Add build arguments for user selection (use existing ubuntu user)
 ARG USER_NAME=ubuntu
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     yq \
     git-lfs \
     pipx \
-    # Qt/X11 runtime dependencies
+    # Qt/X11 runtime dependencies--basically the x-launch dependencies
     libxcb1 \
     libx11-xcb1 \
     libxcb-glx0 \
@@ -128,22 +128,22 @@ FROM base AS dev
 USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-$ROS_DISTRO-ros-gz \
+    # ros-$ROS_DISTRO-ros-gz \
     ros-$ROS_DISTRO-rviz2 \
-    ros-$ROS_DISTRO-gz-ros2-control \
+    # ros-$ROS_DISTRO-gz-ros2-control \
     ros-$ROS_DISTRO-robot-localization \
     curl \
     lsb-release \
     gnupg \
     ca-certificates && \
     # Fetch and install OSRF package signing key
-    curl -fsSL https://packages.osrfoundation.org/gazebo.gpg -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg && \
+    # curl -fsSL https://packages.osrfoundation.org/gazebo.gpg -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg && \
     # Add Gazebo (OSRF) apt repository for the current distro
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list && \
+    # echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list && \
     apt-get update && \
     # Install Gazebo harmonic and needed Qt/X11/XCB/OpenGL libs to support GUI
     apt-get install -y --no-install-recommends \
-    gz-harmonic && \
+    # gz-harmonic && \
     # Cleanup apt caches
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
