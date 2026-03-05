@@ -1,14 +1,10 @@
-# Start with the ROS 2 humble base image
+# Start with the ROS 2 Jazzy base image
+# FROM ros:jazzy-ros-base AS base
 FROM ros:humble-ros-base AS base
-
-ARG ROS_DISTRO=humble
-ENV ROS_DISTRO=${ROS_DISTRO}
-
 # Add build arguments for user selection (use existing ubuntu user)
 ARG USER_NAME=ubuntu
 ARG USER_UID=1000
 ARG USER_GID=1000
-
 
 # 1. Install dependencies (Root)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -27,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     usbutils \
     build-essential \
     nano \
+    # yq \
     git-lfs \
     pipx \
     # Qt/X11 runtime dependencies
@@ -42,19 +39,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb-render-util0 \
     # Install git lfs
     && git lfs install \
-    # Install yq
-    && YQ_VERSION="v4.40.5" \
-    && YQ_BINARY="yq_linux_$(dpkg --print-architecture)" \
-    && wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${YQ_BINARY}.tar.gz -O - | tar xz && mv ${YQ_BINARY} /usr/bin/yq \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+    #manually install the yq binary for Jammy Jellyfish(22.04)
+RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq \
+    && chmod +x /usr/bin/yq
 
-# 2. Setup User
-# Create the user if it doesn't exist (some base images might not have it)
-RUN if ! id -u $USER_NAME >/dev/null 2>&1; then \
-    groupadd --gid $USER_GID $USER_NAME && \
-    useradd --uid $USER_UID --gid $USER_GID -m $USER_NAME; \
-    fi
+# 2.Create the user/group
+# The base image already provides the `ubuntu` user (UID 1000)
+# Configure passwordless sudo for the user
+RUN groupadd --gid ${USER_GID} ${USER_NAME} \
+    && useradd --uid $USER_UID --gid ${USER_GID} -m -s /bin/bash ${USER_NAME} \
+    && echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER_NAME} \
+    &&chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Setup directory
 RUN mkdir -p /home/$USER_NAME/ros2_workspaces/src
@@ -68,33 +65,33 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     apt-get update && \
     rosdep update && \
     rosdep install --from-paths src --ignore-src -y && \
-    #    git clone https://github.com/IEEE-UCF/SEC26Mirror.git /tmp/sec26mirror && \
-    #    cd /tmp/sec26mirror && \
-    #    git checkout 6e5be2c && \
-    rosdep install --from-paths src --ignore-src -y --skip-keys ament_python || true && \
+#    git clone https://github.com/IEEE-UCF/SEC26Mirror.git /tmp/sec26mirror && \
+#    cd /tmp/sec26mirror && \
+#    git checkout 6e5be2c && \
+    rosdep install --from-paths ros2_ws/src --ignore-src -y --skip-keys ament_python || true && \
     cd / && \
-    #   rm -rf /tmp/sec26mirror && \
+#   rm -rf /tmp/sec26mirror && \
     rm -rf /var/lib/apt/lists/*
 
 # Fix permissions so the user/group own their workspace
 RUN chown -R $USER_UID:$USER_GID /home/$USER_NAME || true
-
-# Configure passwordless sudo for the user
-RUN echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" | tee /etc/sudoers.d/$USER_NAME && \
-    chmod 0440 /etc/sudoers.d/$USER_NAME
 
 # --- Switch to existing ubuntu user ---
 USER $USER_NAME
 
 RUN rosdep update
 
+# 4. Build the Setup Workspace
+RUN /bin/bash -c ". /opt/ros/$ROS_DISTRO/setup.bash && \
+    cd /home/$USER_NAME/ros2_workspaces && \
+    colcon build && \
+    rm -rf build log"
+
 # 5. Create and Build the Agent
 # Note: This creates a nested workspace 'microros_agent_ws' inside 'ros2_workspaces'
-RUN /bin/bash -c " \
-    source /opt/ros/$ROS_DISTRO/setup.bash && \
+RUN /bin/bash -c ". /opt/ros/$ROS_DISTRO/setup.bash && \
+    . /home/$USER_NAME/ros2_workspaces/install/setup.bash && \
     cd /home/$USER_NAME/ros2_workspaces && \
-    colcon build --symlink-install && \
-    source install/setup.bash && \
     ros2 run micro_ros_setup create_agent_ws.sh && \
     ros2 run micro_ros_setup build_agent.sh && \
     rm -rf microros_agent_ws/build microros_agent_ws/log"
@@ -115,33 +112,50 @@ RUN pipx install platformio && \
 
 USER root
 # 8. Install any other python3 libraries here
-# Ensure gpiozero is available for Raspberry Pi GPIO control
+# Ensure gpiozero is available for Raspberry Pi GPIO control <-- not necessart for now
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-gpiozero \
     python3-lgpio \
-    python3-rpi.gpio \
+    # python3-rpi.gpio \
     python3-serial \
     python3-requests && \
     rm -rf /var/lib/apt/lists/*
 
+#//Everything below is for the dev parameter made from the .env file
 FROM base AS dev
 
-# Switch to root to install Gazebo Harmonic and required tools, then switch back
+#switch to root user and install system dependicies for F1TENTH, GYM , and GUI tools
 USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rviz2 \
-    ros-$ROS_DISTRO-rqt \
     ros-$ROS_DISTRO-rqt-graph \
-    ros-$ROS_DISTRO-robot-localization \
-    ros-$ROS_DISTRO-tf2-tools \
+    ros-$ROS_DISTRO-navigation2 \
+    ros-$ROS_DISTRO-nav2-bringup \
     ros-$ROS_DISTRO-xacro \
-    && rm -rf /var/lib/apt/lists/*
+    python3-tk \
+    x11-apps \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+#Install f1tenth_gym and its numerical/rendering dependcies
+#check out https://github.com/f1tenth/f1tenth_gym/blob/main/setup.py
+# RUN pip3 install --no-cache-dir \
+#     gym==0.19.0 \
+#     numpy \
+#     Pillow \
+#     scipy \
+#     numba \
+#     pyyaml \
+#     pyglet==1.5.27 \
+#     f1tenth-gym
+# Install the core F1TENTH Gym physics engine directly from source---there will be a setup.py script
+#that does the python installation for you!
+RUN pip3 install --no-cache-dir git+https://github.com/f1tenth/f1tenth_gym.git
+
 
 USER $USER_NAME
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
-
+#//Everything below is for the prod parameter made from the .env file
 FROM base AS prod
 
 USER $USER_NAME
