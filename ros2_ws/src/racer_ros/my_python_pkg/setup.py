@@ -1,5 +1,6 @@
 from setuptools import find_packages, setup
-
+import os
+from glob import glob
 package_name = 'my_python_pkg'
 
 setup(
@@ -10,6 +11,9 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        #Inclusion of the launch files!
+        (os.path.join('share',package_name,'launch'),
+            glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,7 +30,8 @@ setup(
         'console_scripts': [
             'simple_publisher = my_python_pkg.simple_publisher:main',
             'simple_subscriber = my_python_pkg.simple_subscriber:main',
-            'custom_msg_publisher = my_python_pkg.'
+            'custom_msg_publisher = my_python_pkg.custom_msg_publisher:main',
+            'custom_msg_subscriber = my_python_pkg.custom_msg_subscriber:main',
         ],
     },
 )

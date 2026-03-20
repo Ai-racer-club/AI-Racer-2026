@@ -47,3 +47,5 @@ ros2 interface show my_custom_msgs/msg/VehicleState
 P.S you can view other msgs present in your ros2 environment just do....
 ros2 interface list
 
+cool now check out the my_python_pkg folder to see the implementation of using custom messagess.....not that difficult!
+
