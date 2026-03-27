@@ -156,6 +156,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fluxbox \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y \
+    ros-humble-asio-cmake-module \
+    ros-humble-serial-driver \
+    ros-humble-io-context \
+    python3-pip \
+    && pip3 install pyusb
+
 RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq \
     && chmod +x /usr/bin/yq
     # ros-$ROS_DISTRO-teleop \
